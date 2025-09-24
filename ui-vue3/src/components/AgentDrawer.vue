@@ -32,7 +32,8 @@
           <div class="flex flex-col items-center justify-center h-full gap-4">
             <h1 class="text-2xl font-bold">Dubbo Admin AI</h1>
             <p class="text-gray-500">
-              我是k8m的AI小助手，你可以问我任何关于kubernetes的问题，我尽量给你提供最准确的答案。
+              我是Dubbo
+              Admin的AI小助手，你可以问我任何关于kubernetes的问题，我尽量给你提供最准确的答案。
             </p>
             <p class="text-lg text-amber-300 font-medium">✨ 奇思妙想和创新的火花</p>
             <div class="grid grid-cols-2 gap-4 w-full max-w-2xl mt-4">
