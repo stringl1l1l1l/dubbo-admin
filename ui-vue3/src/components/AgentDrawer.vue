@@ -1,15 +1,5 @@
 <!--
-  ~ Licensed to the Apache        <template v-if="messages.length === 0">
-          <div class="flex items-center justify-center h-full">
-            <p class="text-gray-500">
-              <template v-if="!currentSessionId"> 请点击"新对话"开始与AI对话 </template>
-              <template v-else>
-                <span v-if="sessions.length === 0">开始提问吧！</span>
-                <span v-else>当前会话暂无消息，快来提问吧！</span>
-              </template>
-            </p>
-          </div>
-        </template>oundation (ASF) under one or more
+  ~ Licensed to the Apache Software Foundation (ASF) under one or more
   ~ contributor license agreements.  See the NOTICE file distributed with
   ~ this work for additional information regarding copyright ownership.
   ~ The ASF licenses this file to You under the Apache License, Version 2.0
@@ -24,12 +14,11 @@
   ~ See the License for the specific language governing permissions and
   ~ limitations under the License.
 -->
-
 <template>
   <a-drawer
     v-model:open="localDrawerOpen"
     class="custom-class"
-    title="问AI"
+    title="Dubbo Admin AI"
     placement="right"
     :width="600"
   >
@@ -40,14 +29,58 @@
         class="flex-1 space-y-6 overflow-y-auto rounded-xl bg-white p-4 text-sm leading-6 text-slate-900 sm:text-base sm:leading-7 h-[400px]"
       >
         <template v-if="messages.length === 0">
-          <div class="flex items-center justify-center h-full">
+          <div class="flex flex-col items-center justify-center h-full gap-4">
+            <h1 class="text-2xl font-bold">Dubbo Admin AI</h1>
             <p class="text-gray-500">
-              <template v-if="!currentSessionId"> 尚未创建对话，请点击“新对话”开始。 </template>
-              <template v-else>
-                <span v-if="sessions.length === 0">已创建新会话，快来提问吧！</span>
-                <span v-else>当前会话暂无消息，快来提问吧！</span>
-              </template>
+              我是k8m的AI小助手，你可以问我任何关于kubernetes的问题，我尽量给你提供最准确的答案。
             </p>
+            <p class="text-lg text-amber-300 font-medium">✨ 奇思妙想和创新的火花</p>
+            <div class="grid grid-cols-2 gap-4 w-full max-w-2xl mt-4">
+              <div
+                class="border rounded-lg p-4 hover:bg-gray-50 cursor-pointer transition-all duration-200 hover:shadow-md"
+                @click="handleSuggestionClick('请给我一个基本的nginx 部署yaml如何配置?')"
+              >
+                <div class="flex items-center gap-2 mb-2">
+                  <div class="text-yellow-500">💡</div>
+                  <div class="font-medium">yaml编写</div>
+                </div>
+                <div class="text-gray-500 text-sm">请给我一个基本的nginx 部署yaml如何配置?</div>
+              </div>
+              <div
+                class="border rounded-lg p-4 hover:bg-gray-50 cursor-pointer transition-all duration-200 hover:shadow-md"
+                @click="handleSuggestionClick('请解释下Deploy中的HostNetwork如何配置?')"
+              >
+                <div class="flex items-center gap-2 mb-2">
+                  <div class="text-blue-500">ℹ️</div>
+                  <div class="font-medium">网络</div>
+                </div>
+                <div class="text-gray-500 text-sm">请解释下Deploy中的HostNetwork如何配置?</div>
+              </div>
+              <div
+                class="border rounded-lg p-4 hover:bg-gray-50 cursor-pointer transition-all duration-200 hover:shadow-md"
+                @click="handleSuggestionClick('请给我一个基本的nginx 部署yaml, 并部署到集群中')"
+              >
+                <div class="flex items-center gap-2 mb-2">
+                  <div class="text-purple-500">🔔</div>
+                  <div class="font-medium">自动应用</div>
+                </div>
+                <div class="text-gray-500 text-sm">
+                  请给我一个基本的nginx 部署yaml, 并部署到集群中
+                </div>
+              </div>
+              <div
+                class="border rounded-lg p-4 hover:bg-gray-50 cursor-pointer transition-all duration-200 hover:shadow-md"
+                @click="handleSuggestionClick('请给我一个基本的nginx 部署yaml, 并保存为模板')"
+              >
+                <div class="flex items-center gap-2 mb-2">
+                  <div class="text-green-500">✅</div>
+                  <div class="font-medium">Yaml模板</div>
+                </div>
+                <div class="text-gray-500 text-sm">
+                  请给我一个基本的nginx 部署yaml, 并保存为模板
+                </div>
+              </div>
+            </div>
           </div>
         </template>
 
@@ -73,16 +106,25 @@
 
             <div
               :class="{
-                'flex rounded-xl bg-[#0000000f] text-[#000000e0] p-4 sm:max-w-md md:max-w-2xl':
+                'flex flex-col rounded-xl bg-[#0000000f] text-[#000000e0] p-4 max-w-[480px] break-words':
                   msg.role === 'assistant',
-                'flex min-h-[85px] rounded-xl bg-[#0000000f] text-[#000000e0] p-4 sm:min-h-0 sm:max-w-md md:max-w-2xl':
+                'flex h-fit rounded-xl bg-[#0000000f] text-[#000000e0] p-4 max-w-[480px] break-words':
                   msg.role === 'user'
               }"
             >
-              <p v-if="msg.content" v-html="msg.content.replace(/\n/g, '<br />')"></p>
-              <p v-else-if="isLoading && msg.role === 'assistant'" class="flex items-center">
-                <LoadingOutlined class="mr-2" /> 正在思考...
-              </p>
+              <template v-if="msg.role === 'assistant'">
+                <div v-if="msg.content" class="markdown-body" v-html="md.render(msg.content)"></div>
+                <div
+                  v-if="isAiThinking && msg === messages[messages.length - 1]"
+                  class="mt-2 flex items-center text-gray-400 text-sm"
+                >
+                  <LoadingOutlined class="mr-2" />
+                  <span class="animate-pulse">正在思考...</span>
+                </div>
+              </template>
+              <template v-else>
+                <p v-html="msg.content.replace(/\n/g, '<br />')"></p>
+              </template>
             </div>
           </div>
         </template>
@@ -90,40 +132,76 @@
       <!-- Prompt message input -->
       <div class="w-full mt-2">
         <div class="w-full flex flex-row gap-2">
-          <a-button class="flex items-center" @click="handleNewChat">
+          <a-button
+            class="flex items-center"
+            style="
+              background-image: linear-gradient(
+                97deg,
+                rgb(242, 249, 254) 0%,
+                rgb(247, 243, 255) 100%
+              );
+            "
+            @click="handleNewChat"
+          >
             <PlusOutlined />
             新对话
           </a-button>
-          <a-button class="flex items-center" @click="handleViewHistory">
+          <a-button
+            class="flex items-center"
+            style="
+              background-image: linear-gradient(
+                97deg,
+                rgb(242, 249, 254) 0%,
+                rgb(247, 243, 255) 100%
+              );
+            "
+            @click="handleViewHistory"
+          >
             <ClockCircleOutlined />
             对话历史
           </a-button>
-          <a-button class="flex items-center" @click="clearHistory">
+          <a-button
+            class="flex items-center"
+            style="
+              background-image: linear-gradient(
+                97deg,
+                rgb(242, 249, 254) 0%,
+                rgb(247, 243, 255) 100%
+              );
+            "
+            @click="clearHistory"
+          >
             <DeleteOutlined />
             清空历史
           </a-button>
         </div>
         <div class="mt-2">
           <div class="relative">
-            <textarea
-              id="chat-input"
-              v-model="inputMessage"
-              @keydown="handleKeyDown"
-              rows="2"
-              class="block w-full resize-none rounded-xl border-none bg-slate-200 p-4 pl-10 pr-20 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-600 sm:text-base"
-              placeholder="输入你的问题..."
-              :disabled="isLoading"
-              required
-            ></textarea>
-            <a-button
-              shape="circle"
-              type="primary"
-              :loading="isLoading"
-              @click="sendMessage"
-              class="absolute top-0 right-0 -translate-x-1/2 translate-y-1/2 flex items-center justify-center"
+            <div
+              class="flex w-full rounded-lg border border-gray-200 bg-white shadow-lg transition-all duration-200 hover:shadow-xl focus-within:border-blue-400 focus-within:ring-4 focus-within:ring-blue-100"
             >
-              <ArrowUpOutlined v-if="!isLoading" />
-            </a-button>
+              <textarea
+                id="chat-input"
+                v-model="inputMessage"
+                @keydown="handleKeyDown"
+                rows="1"
+                class="block w-full resize-none rounded-lg border-0 bg-transparent px-4 py-3 text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-0 sm:text-sm transition-colors duration-200 hover:bg-gray-50"
+                placeholder="输入你的问题，Shift + Enter 换行"
+                :disabled="isLoading"
+                required
+              ></textarea>
+              <div class="flex items-end gap-2 p-2">
+                <a-button
+                  shape="circle"
+                  type="primary"
+                  :loading="isLoading"
+                  @click="sendMessage"
+                  class="flex h-8 w-8 items-center justify-center"
+                >
+                  <ArrowUpOutlined v-if="!isLoading" />
+                </a-button>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -179,16 +257,44 @@ import {
   LoadingOutlined
 } from '@ant-design/icons-vue'
 import { message } from 'ant-design-vue'
-import axios from 'axios'
-
 import { aiService } from '@/api/service/ai'
 import type { ChatMessage, Session } from '@/api/service/ai'
+import MarkdownIt from 'markdown-it'
+import hljs from 'highlight.js'
+import 'highlight.js/styles/github.css' // 使用 GitHub 风格的代码高亮主题
+
+// 初始化 markdown 解析器
+const md: MarkdownIt = new MarkdownIt({
+  html: true, // 启用 HTML 标签
+  breaks: true, // 转换 \n 为 <br>
+  linkify: true, // 自动转换 URL 为链接
+  typographer: true, // 启用一些语言中性的替换 + 引号美化
+  highlight: function (str: string, lang: string): string {
+    if (lang && hljs.getLanguage(lang)) {
+      try {
+        return (
+          '<pre class="code-block"><code class="hljs language-' +
+          lang +
+          '">' +
+          hljs.highlight(str, { language: lang, ignoreIllegals: true }).value +
+          '</code></pre>'
+        )
+      } catch (error) {
+        console.warn('Failed to highlight code block:', error)
+      }
+    }
+    return (
+      '<pre class="code-block"><code class="hljs">' + md.utils.escapeHtml(str) + '</code></pre>'
+    )
+  }
+})
 
 // 定义本地响应式变量
 const localDrawerOpen = ref(false)
 const messages = ref<ChatMessage[]>([])
 const inputMessage = ref('')
 const isLoading = ref(false)
+const isAiThinking = ref(false) // AI是否正在思考（用于显示思考中的动画）
 const currentSessionId = ref('')
 const sessions = ref<Session[]>([])
 const historyModalVisible = ref(false)
@@ -314,6 +420,7 @@ async function sendMessage() {
     let partialChunk = ''
     let hasError = false
 
+    // eslint-disable-next-line no-constant-condition
     while (true) {
       const { done, value } = await reader.read()
       if (done) break
@@ -323,18 +430,31 @@ async function sendMessage() {
       partialChunk += chunk
 
       // 处理可能的多行数据
-      const lines = partialChunk.split('\n')
-      partialChunk = lines.pop() || ''
+      let lines = partialChunk.split('\n')
 
-      for (const line of lines) {
+      // 如果最后一行不完整，保存到partialChunk中
+      if (!chunk.endsWith('\n')) {
+        partialChunk = lines.pop() || ''
+      } else {
+        partialChunk = ''
+      }
+
+      // 处理每一对事件和数据
+      for (let i = 0; i < lines.length - 1; i++) {
+        const line = lines[i]
+        const nextLine = lines[i + 1]
+
         if (line.trim() === '') continue
 
         // 解析事件类型和数据
         if (line.startsWith('event: ')) {
           const eventType = line.substring(7).trim()
-          // 获取下一行的数据
-          const nextLine = lines.find((l, index) => lines.indexOf(line) + 1 === index)
-          if (!nextLine || !nextLine.startsWith('data: ')) continue
+
+          // 确保下一行是数据行
+          if (!nextLine.startsWith('data: ')) continue
+
+          // 跳过已处理的数据行
+          i++
 
           const dataStr = nextLine.substring(6)
           try {
@@ -345,6 +465,7 @@ async function sendMessage() {
               case 'message_start':
                 console.log('开始新的消息')
                 aiMessage.content = ''
+                isAiThinking.value = true
                 break
 
               case 'content_block_start':
@@ -353,9 +474,14 @@ async function sendMessage() {
 
               case 'content_block_delta':
                 if (data.delta?.type === 'text_delta' && data.delta?.text) {
+                  // 将新文本添加到消息内容中
                   aiMessage.content += data.delta.text
-                  // 强制更新视图
-                  messages.value = [...messages.value]
+                  // 创建新的消息数组以触发响应式更新
+                  const updatedMessages = [...messages.value]
+                  // 更新最后一条消息
+                  updatedMessages[updatedMessages.length - 1] = { ...aiMessage }
+                  // 更新消息列表
+                  messages.value = updatedMessages
                 }
                 break
 
@@ -372,11 +498,13 @@ async function sendMessage() {
 
               case 'message_stop':
                 console.log('消息结束')
-                // 可以在这里处理最终的清理工作
+                // 标记AI不再思考
+                isAiThinking.value = false
                 break
 
               case 'error':
                 hasError = true
+                isAiThinking.value = false
                 console.error('SSE 流错误:', data.error)
                 if (data.error?.message) {
                   message.error(`发生错误: ${data.error.message}`)
@@ -405,6 +533,7 @@ async function sendMessage() {
     aiMessage.content = '抱歉，发生了错误，请稍后再试。'
   } finally {
     isLoading.value = false
+    isAiThinking.value = false
   }
 }
 
@@ -434,6 +563,18 @@ function handleKeyDown(event: KeyboardEvent) {
   }
 }
 
+// 处理建议问题的点击
+function handleSuggestionClick(suggestion: string) {
+  inputMessage.value = suggestion
+  // 自动聚焦到输入框
+  setTimeout(() => {
+    const inputElement = document.getElementById('chat-input')
+    if (inputElement) {
+      inputElement.focus()
+    }
+  }, 0)
+}
+
 onMounted(() => {
   // 移除自动创建会话的逻辑，改为用户主动点击创建
 })
@@ -457,4 +598,187 @@ async function loadSession(sessionId: string) {
 }
 </script>
 
-<style></style>
+<style>
+.markdown-body {
+  font-family:
+    -apple-system,
+    BlinkMacSystemFont,
+    Segoe UI,
+    Helvetica,
+    Arial,
+    sans-serif;
+  font-size: 14px;
+  line-height: 1.6;
+  word-wrap: break-word;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  color: #24292e;
+}
+
+.markdown-body > *:first-child {
+  margin-top: 0 !important;
+}
+
+.markdown-body > *:last-child {
+  margin-bottom: 0 !important;
+}
+
+.markdown-body .code-block {
+  margin: 0;
+  padding: 16px;
+  overflow: auto;
+  font-size: 85%;
+  line-height: 1.45;
+  background-color: #f6f8fa;
+  border-radius: 6px;
+}
+
+.markdown-body .hljs {
+  background: transparent;
+  padding: 0;
+}
+
+.markdown-body a {
+  color: #0366d6;
+  text-decoration: none;
+}
+
+.markdown-body a:hover {
+  text-decoration: underline;
+}
+
+.markdown-body hr {
+  height: 0.25em;
+  padding: 0;
+  margin: 24px 0;
+  background-color: #e1e4e8;
+  border: 0;
+}
+
+.markdown-body blockquote {
+  padding: 0 1em;
+  color: #6a737d;
+  border-left: 0.25em solid #dfe2e5;
+  margin: 0 0 16px 0;
+}
+
+.markdown-body ul,
+.markdown-body ol {
+  padding-left: 2em;
+  margin-top: 0;
+  margin-bottom: 16px;
+}
+
+.markdown-body img {
+  max-width: 100%;
+  box-sizing: content-box;
+  background-color: #fff;
+  border-radius: 3px;
+}
+
+.markdown-body pre {
+  background-color: #f6f8fa;
+  border-radius: 6px;
+  padding: 16px;
+  overflow-x: auto;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+
+.markdown-body code {
+  background-color: rgba(175, 184, 193, 0.2);
+  border-radius: 6px;
+  padding: 0.2em 0.4em;
+  font-family:
+    ui-monospace,
+    SFMono-Regular,
+    SF Mono,
+    Menlo,
+    Consolas,
+    Liberation Mono,
+    monospace;
+}
+
+.markdown-body pre code {
+  background-color: transparent;
+  padding: 0;
+}
+
+.markdown-body h1,
+.markdown-body h2,
+.markdown-body h3,
+.markdown-body h4,
+.markdown-body h5,
+.markdown-body h6 {
+  margin-top: 24px;
+  margin-bottom: 16px;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.markdown-body h1 {
+  font-size: 2em;
+}
+.markdown-body h2 {
+  font-size: 1.5em;
+}
+.markdown-body h3 {
+  font-size: 1.25em;
+}
+.markdown-body h4 {
+  font-size: 1em;
+}
+
+.markdown-body ul,
+.markdown-body ol {
+  padding-left: 2em;
+  margin-top: 0;
+  margin-bottom: 16px;
+}
+
+.markdown-body blockquote {
+  padding: 0 1em;
+  color: #57606a;
+  border-left: 0.25em solid #d0d7de;
+  margin: 0 0 16px;
+}
+
+.markdown-body table {
+  display: block;
+  width: 100%;
+  width: max-content;
+  max-width: 100%;
+  overflow: auto;
+  margin-top: 0;
+  margin-bottom: 16px;
+  border-spacing: 0;
+  border-collapse: collapse;
+}
+
+.markdown-body table th,
+.markdown-body table td {
+  padding: 6px 13px;
+  border: 1px solid #d0d7de;
+}
+
+.markdown-body table tr {
+  background-color: #ffffff;
+  border-top: 1px solid #d0d7de;
+}
+
+.markdown-body table tr:nth-child(2n) {
+  background-color: #f6f8fa;
+}
+
+.markdown-body img {
+  max-width: 100%;
+  box-sizing: content-box;
+  background-color: #ffffff;
+}
+
+.markdown-body p {
+  margin-top: 0;
+  margin-bottom: 16px;
+}
+</style>
