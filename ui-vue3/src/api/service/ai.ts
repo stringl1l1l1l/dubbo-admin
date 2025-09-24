@@ -70,10 +70,7 @@ export const aiService = {
   // 发送聊天消息（流式响应）
   async sendChatMessage(message: string, sessionId?: string): Promise<ReadableStream> {
     const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Session-ID'
+      'Content-Type': 'application/json'
     }
 
     if (sessionId) {
