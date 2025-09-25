@@ -23,10 +23,12 @@
     :width="600"
   >
     <!-- Prompt Messages Container - Modify the height according to your need -->
-    <div class="flex w-full flex-col">
+    <div class="flex w-full flex-col h-full">
       <!-- Prompt Messages -->
       <div
-        class="flex-1 space-y-6 overflow-y-auto rounded-xl bg-white p-4 text-sm leading-6 text-slate-900 sm:text-base sm:leading-7 h-[400px]"
+        class="flex-1 space-y-6 overflow-y-auto rounded-xl bg-white p-4 text-sm leading-6 text-slate-900 sm:text-base sm:leading-7"
+        ref="messagesScrollContainer"
+        style="height: calc(100vh - 200px); max-height: 70%"
       >
         <template v-if="messages.length === 0">
           <div class="flex flex-col items-center justify-center h-full gap-4">
@@ -114,14 +116,17 @@
               }"
             >
               <template v-if="msg.role === 'assistant'">
-                <div v-if="msg.content" class="markdown-body" v-html="md.render(msg.content)"></div>
+                <template v-if="msg === messages[messages.length - 1] && isAiThinking">
+                  <div class="flex items-center text-gray-400 text-sm">
+                    <LoadingOutlined class="mr-2" />
+                    <span class="animate-pulse">正在思考...</span>
+                  </div>
+                </template>
                 <div
-                  v-if="isAiThinking && msg === messages[messages.length - 1]"
-                  class="mt-2 flex items-center text-gray-400 text-sm"
-                >
-                  <LoadingOutlined class="mr-2" />
-                  <span class="animate-pulse">正在思考...</span>
-                </div>
+                  v-else-if="msg.content"
+                  class="markdown-body"
+                  v-html="md.render(msg.content)"
+                ></div>
               </template>
               <template v-else>
                 <p v-html="msg.content.replace(/\n/g, '<br />')"></p>
@@ -260,7 +265,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, onMounted } from 'vue'
+import { ref, watch, onMounted, nextTick } from 'vue'
 import {
   ClockCircleOutlined,
   DeleteOutlined,
@@ -313,6 +318,7 @@ const sessions = ref<Session[]>([])
 const historyModalVisible = ref(false)
 const lastError = ref<string>('') // 最后一次错误信息
 const lastUserMessage = ref<string>('') // 保存最后一次用户消息用于重试
+const messagesScrollContainer = ref<HTMLElement | null>(null) // 消息滚动容器的引用
 
 // 使用Vue 3的<script setup>编译器宏定义props和emits
 const props = defineProps({
@@ -338,6 +344,28 @@ watch(
 // 监听本地变量变化并触发事件通知父组件
 watch(localDrawerOpen, (newVal) => {
   emit('update:agentDrawerOpen', newVal)
+})
+
+// 滚动到底部的函数
+const scrollToBottom = async () => {
+  await nextTick() // 确保 DOM 更新完成
+  if (messagesScrollContainer.value) {
+    messagesScrollContainer.value.scrollTop = messagesScrollContainer.value.scrollHeight
+  }
+}
+
+// 监听消息列表变化，自动滚动到底部
+watch(
+  messages,
+  scrollToBottom,
+  { deep: true } // 深度监听，捕获消息内容的变化
+)
+
+// 监听drawer打开状态，打开时滚动到底部
+watch(localDrawerOpen, async (newVal) => {
+  if (newVal) {
+    await scrollToBottom()
+  }
 })
 
 // 创建新会话
@@ -397,6 +425,11 @@ async function retryLastMessage() {
   // 清除错误状态
   lastError.value = ''
 
+  // 删除最后两条消息（用户的问题和AI的回复）
+  if (messages.value.length >= 2) {
+    messages.value = messages.value.slice(0, -2)
+  }
+
   // 重新发送上一条消息
   inputMessage.value = lastUserMessage.value
   await sendMessage()
@@ -439,6 +472,9 @@ async function sendMessage() {
   messages.value.push(aiMessage)
   isLoading.value = true
   inputMessage.value = ''
+
+  // 发送消息后滚动到底部
+  await scrollToBottom()
 
   try {
     // 发送消息并获取流式响应
@@ -518,6 +554,8 @@ async function sendMessage() {
                   updatedMessages[updatedMessages.length - 1] = { ...aiMessage }
                   // 更新消息列表
                   messages.value = updatedMessages
+                  // 实时滚动到底部
+                  await scrollToBottom()
                 }
                 break
 
@@ -553,8 +591,6 @@ async function sendMessage() {
                 console.error('SSE 流错误:', data.error)
                 if (data.error?.message) {
                   lastError.value = data.error.message
-                  // 移除最后一条AI消息
-                  messages.value = messages.value.slice(0, -1)
                 }
                 break
 
@@ -585,9 +621,6 @@ async function sendMessage() {
     } else {
       lastError.value = '发送消息失败，请稍后重试'
     }
-
-    // 移除最后一条AI消息
-    messages.value = messages.value.slice(0, -1)
   } finally {
     isLoading.value = false
     isAiThinking.value = false
@@ -602,6 +635,9 @@ function clearHistory() {
 
 // 处理新对话按钮点击
 async function handleNewChat() {
+  // 清除错误状态
+  lastError.value = ''
+  // 创建新对话
   await createNewSession()
   message.success('已创建新对话')
 }
@@ -633,18 +669,23 @@ function handleSuggestionClick(suggestion: string) {
 }
 
 onMounted(() => {
-  // 移除自动创建会话的逻辑，改为用户主动点击创建
+  // 确保消息容器正确初始化并滚动到底部
+  scrollToBottom()
 })
 
 // 加载选定的会话
 async function loadSession(sessionId: string) {
   try {
     isLoading.value = true
+    // 清除错误状态
+    lastError.value = ''
     const sessionInfo = await fetchSessionInfo(sessionId)
     if (sessionInfo) {
       currentSessionId.value = sessionId
       messages.value = sessionInfo.messages || []
       historyModalVisible.value = false
+      // 加载会话后滚动到底部
+      await scrollToBottom()
     }
   } catch (error) {
     console.error('加载会话失败:', error)
@@ -803,12 +844,15 @@ async function loadSession(sessionId: string) {
 .markdown-body h1 {
   font-size: 2em;
 }
+
 .markdown-body h2 {
   font-size: 1.5em;
 }
+
 .markdown-body h3 {
   font-size: 1.25em;
 }
+
 .markdown-body h4 {
   font-size: 1em;
 }
