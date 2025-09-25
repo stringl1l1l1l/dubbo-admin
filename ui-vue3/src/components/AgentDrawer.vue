@@ -130,6 +130,17 @@
           </div>
         </template>
       </div>
+      <!-- Error message display -->
+      <div class="w-full mt-2" v-if="lastError">
+        <a-alert type="error" show-icon :message="'错误'" :description="lastError" class="mb-2"
+          ><template #action>
+            <RedoOutlined
+              class="hover:cursor-pointer active:scale-110"
+              @click="retryLastMessage"
+            /> </template
+        ></a-alert>
+      </div>
+
       <!-- Prompt message input -->
       <div class="w-full mt-2">
         <div class="w-full flex flex-row gap-2">
@@ -255,7 +266,8 @@ import {
   DeleteOutlined,
   PlusOutlined,
   ArrowUpOutlined,
-  LoadingOutlined
+  LoadingOutlined,
+  RedoOutlined
 } from '@ant-design/icons-vue'
 import { message } from 'ant-design-vue'
 import { aiService } from '@/api/service/ai'
@@ -299,6 +311,8 @@ const isAiThinking = ref(false) // AI是否正在思考（用于显示思考中�
 const currentSessionId = ref('')
 const sessions = ref<Session[]>([])
 const historyModalVisible = ref(false)
+const lastError = ref<string>('') // 最后一次错误信息
+const lastUserMessage = ref<string>('') // 保存最后一次用户消息用于重试
 
 // 使用Vue 3的<script setup>编译器宏定义props和emits
 const props = defineProps({
@@ -376,15 +390,32 @@ async function deleteSession(sessionId: string) {
   }
 }
 
+// 重试上一条消息
+async function retryLastMessage() {
+  if (!lastUserMessage.value) return
+
+  // 清除错误状态
+  lastError.value = ''
+
+  // 重新发送上一条消息
+  inputMessage.value = lastUserMessage.value
+  await sendMessage()
+}
+
 // 发送消息并接收流式响应
 async function sendMessage() {
   if (!inputMessage.value.trim() || isLoading.value) return
+
+  // 重置错误状态
+  lastError.value = ''
+  // 保存最后一条用户消息
+  lastUserMessage.value = inputMessage.value
 
   // 如果没有当前会话ID，先创建一个新会话
   if (!currentSessionId.value) {
     const sessionId = await createNewSession()
     if (!sessionId) {
-      message.error('无法创建会话，请稍后再试')
+      lastError.value = '无法创建会话，请稍后再试'
       return
     }
   }
@@ -471,6 +502,10 @@ async function sendMessage() {
 
               case 'content_block_start':
                 console.log('开始新的内容块')
+                // 如果已经有内容，添加分隔线
+                if (aiMessage.content) {
+                  aiMessage.content += '\n\n---\n\n'
+                }
                 break
 
               case 'content_block_delta':
@@ -486,9 +521,18 @@ async function sendMessage() {
                 }
                 break
 
-              case 'content_block_stop':
+              case 'content_block_stop': {
                 console.log('内容块结束')
+                // 每个块结束后添加分隔线和空行
+                aiMessage.content += '\n\n---\n\n'
+                // 创建新的消息数组以触发响应式更新
+                const updatedBlockMessages = [...messages.value]
+                // 更新最后一条消息
+                updatedBlockMessages[updatedBlockMessages.length - 1] = { ...aiMessage }
+                // 更新消息列表
+                messages.value = updatedBlockMessages
                 break
+              }
 
               case 'message_delta':
                 // 处理消息更新，比如处理建议的动作等
@@ -508,8 +552,9 @@ async function sendMessage() {
                 isAiThinking.value = false
                 console.error('SSE 流错误:', data.error)
                 if (data.error?.message) {
-                  message.error(`发生错误: ${data.error.message}`)
-                  aiMessage.content = `错误: ${data.error.message}`
+                  lastError.value = data.error.message
+                  // 移除最后一条AI消息
+                  messages.value = messages.value.slice(0, -1)
                 }
                 break
 
@@ -527,11 +572,22 @@ async function sendMessage() {
     if (hasError && !aiMessage.content) {
       aiMessage.content = '抱歉，处理消息时发生错误，请稍后再试。'
     }
-  } catch (error) {
-    message.error('发送消息失败')
+  } catch (error: any) {
     console.error('发送消息失败:', error)
-    // 更新AI消息为错误信息
-    aiMessage.content = '抱歉，发生了错误，请稍后再试。'
+
+    // 处理错误响应
+    if (error.response?.data) {
+      // JSON 格式的错误响应，直接使用 message 字段
+      lastError.value = error.response.data.message
+    } else if (error.message) {
+      // 普通的 Error 对象
+      lastError.value = error.message
+    } else {
+      lastError.value = '发送消息失败，请稍后重试'
+    }
+
+    // 移除最后一条AI消息
+    messages.value = messages.value.slice(0, -1)
   } finally {
     isLoading.value = false
     isAiThinking.value = false
@@ -625,6 +681,18 @@ async function loadSession(sessionId: string) {
   margin-bottom: 0 !important;
 }
 
+.markdown-body > p:first-of-type {
+  position: relative;
+  padding-left: 1.5em;
+}
+
+.markdown-body > p:first-of-type::before {
+  content: '💡';
+  position: absolute;
+  left: 0;
+  top: 0;
+}
+
 .markdown-body .code-block {
   margin: 0;
   padding: 16px;
@@ -650,11 +718,25 @@ async function loadSession(sessionId: string) {
 }
 
 .markdown-body hr {
-  height: 0.25em;
+  height: 1px;
   padding: 0;
-  margin: 24px 0;
-  background-color: #e1e4e8;
+  margin: 1.5em 0;
+  background: linear-gradient(to right, transparent, #e1e4e8 20%, #e1e4e8 80%, transparent);
   border: 0;
+  position: relative;
+}
+
+.markdown-body hr::after {
+  content: '✧';
+  display: block;
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  background-color: #fff;
+  padding: 0 10px;
+  color: #6e7781;
+  font-size: 12px;
 }
 
 .markdown-body blockquote {
