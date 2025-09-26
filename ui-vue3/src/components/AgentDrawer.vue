@@ -92,17 +92,18 @@
             v-for="msg in messages"
             :key="msg.id"
             :class="{
-              'flex items-start': msg.role === 'assistant',
-              'flex flex-row-reverse items-start': msg.role === 'user'
+              'flex items-start': msg.role === 'assistant' && msg.type !== 'error',
+              'flex flex-row-reverse items-start': msg.role === 'user',
+              'flex justify-center': msg.type === 'error'
             }"
           >
             <img
-              v-if="msg.role === 'assistant'"
+              v-if="msg.role === 'assistant' && msg.type !== 'error'"
               class="mr-2 h-8 w-8 rounded-full"
               src="https://dummyimage.com/128x128/fde3cf/f56a00&text=AI"
             />
             <img
-              v-else
+              v-else-if="msg.role === 'user'"
               class="ml-2 h-8 w-8 rounded-full"
               src="https://dummyimage.com/128x128/87d068/ffffff&text=U"
             />
@@ -110,9 +111,11 @@
             <div
               :class="{
                 'flex flex-col rounded-xl bg-[#0000000f] text-[#000000e0] p-4 max-w-[480px] break-words':
-                  msg.role === 'assistant',
+                  msg.role === 'assistant' && msg.type !== 'error',
                 'flex h-fit rounded-xl bg-[#0000000f] text-[#000000e0] p-4 max-w-[480px] break-words':
-                  msg.role === 'user'
+                  msg.role === 'user',
+                'flex flex-col rounded-xl bg-red-50 border border-red-200 text-red-800 p-4 min-w-[480px] max-w-[480px] break-words':
+                  msg.type === 'error'
               }"
             >
               <template v-if="msg.role === 'assistant'">
@@ -120,6 +123,29 @@
                   <div class="flex items-center text-gray-400 text-sm">
                     <LoadingOutlined class="mr-2" />
                     <span class="animate-pulse">正在思考...</span>
+                  </div>
+                </template>
+                <template v-else-if="msg.type === 'error'">
+                  <div class="flex flex-col">
+                    <div class="flex items-center text-red-500 text-sm mb-2">
+                      <span class="mr-2">❌</span>
+                      <span class="font-medium">出现错误</span>
+                    </div>
+                    <div
+                      class="text-red-600 text-sm mb-3"
+                      v-html="msg.content.replace(/\n/g, '<br />')"
+                    ></div>
+                    <div class="flex justify-end">
+                      <a-button
+                        size="small"
+                        type="primary"
+                        @click="retryLastMessage"
+                        class="flex items-center"
+                      >
+                        <RedoOutlined class="mr-1" />
+                        重试
+                      </a-button>
+                    </div>
                   </div>
                 </template>
                 <div
@@ -135,20 +161,10 @@
           </div>
         </template>
       </div>
-      <!-- Error message display -->
-      <div class="w-full mt-2" v-if="lastError">
-        <a-alert type="error" show-icon :message="'错误'" :description="lastError" class="mb-2"
-          ><template #action>
-            <RedoOutlined
-              class="hover:cursor-pointer active:scale-110"
-              @click="retryLastMessage"
-            /> </template
-        ></a-alert>
-      </div>
 
       <!-- Prompt message input -->
       <div class="w-full mt-2">
-        <div class="w-full flex flex-row gap-2">
+        <div class="w-full flex flex-row gap-2" v-show="messages.length > 0">
           <a-button
             class="flex items-center"
             style="
@@ -316,7 +332,7 @@ const isAiThinking = ref(false) // AI是否正在思考（用于显示思考中�
 const currentSessionId = ref('')
 const sessions = ref<Session[]>([])
 const historyModalVisible = ref(false)
-const lastError = ref<string>('') // 最后一次错误信息
+
 const lastUserMessage = ref<string>('') // 保存最后一次用户消息用于重试
 const messagesScrollContainer = ref<HTMLElement | null>(null) // 消息滚动容器的引用
 
@@ -352,6 +368,18 @@ const scrollToBottom = async () => {
   if (messagesScrollContainer.value) {
     messagesScrollContainer.value.scrollTop = messagesScrollContainer.value.scrollHeight
   }
+}
+
+// 添加错误消息气泡
+const addErrorMessage = (errorText: string) => {
+  const errorMessage: ChatMessage = {
+    id: Date.now().toString(),
+    content: errorText,
+    role: 'assistant',
+    timestamp: Date.now(),
+    type: 'error'
+  }
+  messages.value.push(errorMessage)
 }
 
 // 监听消息列表变化，自动滚动到底部
@@ -422,10 +450,7 @@ async function deleteSession(sessionId: string) {
 async function retryLastMessage() {
   if (!lastUserMessage.value) return
 
-  // 清除错误状态
-  lastError.value = ''
-
-  // 删除最后两条消息（用户的问题和AI的回复）
+  // 删除最后两条消息（用户的问题和错误消息）
   if (messages.value.length >= 2) {
     messages.value = messages.value.slice(0, -2)
   }
@@ -439,8 +464,6 @@ async function retryLastMessage() {
 async function sendMessage() {
   if (!inputMessage.value.trim() || isLoading.value) return
 
-  // 重置错误状态
-  lastError.value = ''
   // 保存最后一条用户消息
   lastUserMessage.value = inputMessage.value
 
@@ -448,7 +471,8 @@ async function sendMessage() {
   if (!currentSessionId.value) {
     const sessionId = await createNewSession()
     if (!sessionId) {
-      lastError.value = '无法创建会话，请稍后再试'
+      addErrorMessage('无法创建会话，请稍后再试')
+      isLoading.value = false
       return
     }
   }
@@ -590,7 +614,9 @@ async function sendMessage() {
                 isAiThinking.value = false
                 console.error('SSE 流错误:', data.error)
                 if (data.error?.message) {
-                  lastError.value = data.error.message
+                  // 移除当前的AI消息并添加错误消息
+                  messages.value.pop()
+                  addErrorMessage(data.error.message)
                 }
                 break
 
@@ -611,16 +637,20 @@ async function sendMessage() {
   } catch (error: any) {
     console.error('发送消息失败:', error)
 
+    // 移除当前的AI消息并添加错误消息
+    messages.value.pop()
+
     // 处理错误响应
+    let errorMessage = '发送消息失败，请稍后重试'
     if (error.response?.data) {
       // JSON 格式的错误响应，直接使用 message 字段
-      lastError.value = error.response.data.message
+      errorMessage = error.response.data.message
     } else if (error.message) {
       // 普通的 Error 对象
-      lastError.value = error.message
-    } else {
-      lastError.value = '发送消息失败，请稍后重试'
+      errorMessage = error.message
     }
+
+    addErrorMessage(errorMessage)
   } finally {
     isLoading.value = false
     isAiThinking.value = false
@@ -635,8 +665,6 @@ function clearHistory() {
 
 // 处理新对话按钮点击
 async function handleNewChat() {
-  // 清除错误状态
-  lastError.value = ''
   // 创建新对话
   await createNewSession()
   message.success('已创建新对话')
@@ -677,8 +705,6 @@ onMounted(() => {
 async function loadSession(sessionId: string) {
   try {
     isLoading.value = true
-    // 清除错误状态
-    lastError.value = ''
     const sessionInfo = await fetchSessionInfo(sessionId)
     if (sessionInfo) {
       currentSessionId.value = sessionId
@@ -762,22 +788,8 @@ async function loadSession(sessionId: string) {
   height: 1px;
   padding: 0;
   margin: 1.5em 0;
-  background: linear-gradient(to right, transparent, #e1e4e8 20%, #e1e4e8 80%, transparent);
+  background-color: #e1e4e8;
   border: 0;
-  position: relative;
-}
-
-.markdown-body hr::after {
-  content: '✧';
-  display: block;
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  transform: translate(-50%, -50%);
-  background-color: #fff;
-  padding: 0 10px;
-  color: #6e7781;
-  font-size: 12px;
 }
 
 .markdown-body blockquote {

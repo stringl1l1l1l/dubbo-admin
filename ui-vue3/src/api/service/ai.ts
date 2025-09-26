@@ -33,6 +33,7 @@ export interface ChatMessage {
   content: string
   role: 'user' | 'assistant'
   timestamp: number
+  type?: 'normal' | 'error'
 }
 
 export interface ChatResponse {
