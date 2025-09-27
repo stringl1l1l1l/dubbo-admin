@@ -18,122 +18,10 @@
   <a-drawer v-model:open="localDrawerOpen" class="custom-class" title="Dubbo Admin AI" placement="right" :width="600">
     <!-- Prompt Messages Container - Modify the height according to your need -->
     <div class="flex w-full flex-col h-full">
-      <!-- Prompt Messages -->
-      <div
-        class="flex-1 space-y-6 overflow-y-auto rounded-xl bg-white p-4 text-sm leading-6 text-slate-900 sm:text-base sm:leading-7"
-        ref="messagesScrollContainer" style="height: calc(100vh - 200px); max-height: 90%">
-        <template v-if="messages.length === 0">
-          <div class="flex flex-col items-center justify-center h-full gap-4">
-            <h1 class="text-2xl font-bold">Dubbo Admin AI</h1>
-            <p class="text-gray-500">
-              我是Dubbo
-              Admin的AI小助手，你可以问我任何关于kubernetes的问题，我尽量给你提供最准确的答案。
-            </p>
-            <p class="text-lg text-amber-300 font-medium">✨ 奇思妙想和创新的火花</p>
-            <div class="grid grid-cols-2 gap-4 w-full max-w-2xl mt-4">
-              <div
-                class="border rounded-lg p-4 hover:bg-gray-50 cursor-pointer transition-all duration-200 hover:shadow-md"
-                @click="handleSuggestionClick('请给我一个基本的nginx 部署yaml如何配置?')">
-                <div class="flex items-center gap-2 mb-2">
-                  <div class="text-yellow-500">💡</div>
-                  <div class="font-medium">yaml编写</div>
-                </div>
-                <div class="text-gray-500 text-sm">请给我一个基本的nginx 部署yaml如何配置?</div>
-              </div>
-              <div
-                class="border rounded-lg p-4 hover:bg-gray-50 cursor-pointer transition-all duration-200 hover:shadow-md"
-                @click="handleSuggestionClick('请解释下Deploy中的HostNetwork如何配置?')">
-                <div class="flex items-center gap-2 mb-2">
-                  <div class="text-blue-500">ℹ️</div>
-                  <div class="font-medium">网络</div>
-                </div>
-                <div class="text-gray-500 text-sm">请解释下Deploy中的HostNetwork如何配置?</div>
-              </div>
-              <div
-                class="border rounded-lg p-4 hover:bg-gray-50 cursor-pointer transition-all duration-200 hover:shadow-md"
-                @click="handleSuggestionClick('请给我一个基本的nginx 部署yaml, 并部署到集群中')">
-                <div class="flex items-center gap-2 mb-2">
-                  <div class="text-purple-500">🔔</div>
-                  <div class="font-medium">自动应用</div>
-                </div>
-                <div class="text-gray-500 text-sm">
-                  请给我一个基本的nginx 部署yaml, 并部署到集群中
-                </div>
-              </div>
-              <div
-                class="border rounded-lg p-4 hover:bg-gray-50 cursor-pointer transition-all duration-200 hover:shadow-md"
-                @click="handleSuggestionClick('请给我一个基本的nginx 部署yaml, 并保存为模板')">
-                <div class="flex items-center gap-2 mb-2">
-                  <div class="text-green-500">✅</div>
-                  <div class="font-medium">Yaml模板</div>
-                </div>
-                <div class="text-gray-500 text-sm">
-                  请给我一个基本的nginx 部署yaml, 并保存为模板
-                </div>
-              </div>
-            </div>
-          </div>
-        </template>
-
-        <template v-else>
-          <div v-for="msg in messages" :key="msg.id" :class="{
-            'flex items-start': msg.role === 'assistant' && msg.type !== 'error',
-            'flex flex-row-reverse items-start': msg.role === 'user',
-            'flex justify-center': msg.type === 'error'
-          }">
-            <img v-if="msg.role === 'assistant' && msg.type !== 'error'" class="mr-2 h-8 w-8 rounded-full"
-              src="https://dummyimage.com/128x128/fde3cf/f56a00&text=AI" />
-            <img v-else-if="msg.role === 'user'" class="ml-2 h-8 w-8 rounded-full"
-              src="https://dummyimage.com/128x128/87d068/ffffff&text=U" />
-
-            <div :class="{
-              'flex flex-col rounded-xl bg-[#0000000f] text-[#000000e0] p-4 max-w-[480px] break-words':
-                msg.role === 'assistant' && msg.type !== 'error',
-              'flex h-fit rounded-xl bg-[#0000000f] text-[#000000e0] p-4 max-w-[480px] break-words':
-                msg.role === 'user',
-              'flex flex-col rounded-xl bg-red-50 border border-red-200 text-red-800 p-4 min-w-[480px] max-w-[480px] break-words':
-                msg.type === 'error'
-            }">
-              <template v-if="msg.role === 'assistant'">
-                <template v-if="msg === messages[messages.length - 1] && isAiThinking && !msg.content">
-                  <div class="flex items-center text-gray-400 text-sm">
-                    <LoadingOutlined class="mr-2" />
-                    <span class="animate-pulse">正在思考...</span>
-                  </div>
-                </template>
-                <template v-else-if="msg.type === 'error'">
-                  <div class="flex flex-col">
-                    <div class="flex items-center text-red-500 text-sm mb-2">
-                      <span class="mr-2">❌</span>
-                      <span class="font-medium">出现错误</span>
-                    </div>
-                    <div class="text-red-600 text-sm mb-3" v-html="msg.content.replace(/\n/g, '<br />')"></div>
-                    <div class="flex justify-end">
-                      <a-button size="small" type="primary" @click="retryLastMessage" :loading="isLoading"
-                        class="flex items-center">
-                        <RedoOutlined v-if="!isLoading" class="mr-1" />
-                        重试
-                      </a-button>
-                    </div>
-                  </div>
-                </template>
-
-                <div v-else-if="msg.content" class="markdown-body">
-                  <div v-html="md.render(msg.content)"></div>
-                  <div v-if="msg === messages[messages.length - 1] && isAiThinking"
-                    class="flex items-center text-gray-400 text-xs mt-2">
-                    <LoadingOutlined class="mr-1" />
-                    <span class="animate-pulse">正在思考...</span>
-                  </div>
-                </div>
-              </template>
-              <template v-else>
-                <p v-html="msg.content.replace(/\n/g, '<br />')"></p>
-              </template>
-            </div>
-          </div>
-        </template>
-      </div>
+      <!-- 使用消息列表组件 -->
+      <MessageList ref="messageListRef" :messages="messages" :is-ai-thinking="isAiThinking" :is-loading="isLoading"
+        :last-user-message="lastUserMessage" :md="md" @retry-last-message="retryLastMessage"
+        @suggestion-click="handleSuggestionClick" />
 
       <!-- Usage Information -->
       <div v-if="usageInfo" class="w-full mb-2 p-3 bg-gray-50 rounded-lg border border-gray-200">
@@ -171,89 +59,16 @@
         </div>
       </div>
 
-      <!-- Prompt message input -->
-      <div class="w-full mt-2">
-        <div class="w-full flex flex-row gap-2" v-show="messages.length > 0">
-          <a-button class="flex items-center" style="
-              background-image: linear-gradient(
-                97deg,
-                rgb(242, 249, 254) 0%,
-                rgb(247, 243, 255) 100%
-              );
-            " @click="handleNewChat">
-            <PlusOutlined />
-            新对话
-          </a-button>
-          <a-button class="flex items-center" style="
-              background-image: linear-gradient(
-                97deg,
-                rgb(242, 249, 254) 0%,
-                rgb(247, 243, 255) 100%
-              );
-            " @click="handleViewHistory">
-            <ClockCircleOutlined />
-            对话历史
-          </a-button>
-          <a-button class="flex items-center" style="
-              background-image: linear-gradient(
-                97deg,
-                rgb(242, 249, 254) 0%,
-                rgb(247, 243, 255) 100%
-              );
-            " @click="clearHistory">
-            <DeleteOutlined />
-            清空历史
-          </a-button>
-        </div>
-        <div class="mt-2">
-          <div class="relative">
-            <div
-              class="flex w-full rounded-lg border border-gray-200 bg-white shadow-lg transition-all duration-200 hover:shadow-xl focus-within:border-blue-400 focus-within:ring-4 focus-within:ring-blue-100">
-              <textarea id="chat-input" v-model="inputMessage" @keydown="handleKeyDown" rows="1"
-                class="block w-full resize-none rounded-lg border-0 bg-transparent px-4 py-3 text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-0 sm:text-sm transition-colors duration-200 hover:bg-gray-50"
-                placeholder="输入你的问题，Shift + Enter 换行" :disabled="isLoading" required></textarea>
-              <div class="flex items-end gap-2 p-2">
-                <a-button shape="circle" type="primary" :loading="isLoading" @click="sendMessage"
-                  class="flex h-8 w-8 items-center justify-center">
-                  <ArrowUpOutlined v-if="!isLoading" />
-                </a-button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
+      <!-- 使用输入区域组件 -->
+      <ChatInput ref="chatInputRef" :messages="messages" :is-loading="isLoading"
+        @update:input-message="handleInputMessageUpdate" @send-message="sendMessage" @handle-new-chat="handleNewChat"
+        @handle-view-history="handleViewHistory" @clear-history="clearHistory" @keydown="handleKeyDown" />
     </div>
   </a-drawer>
 
-  <!-- 对话历史Modal -->
-  <a-modal v-model:visible="historyModalVisible" title="对话历史" :footer="null" width="600px">
-    <div class="max-h-[400px] overflow-y-auto">
-      <a-empty v-if="sessions.length === 0" description="暂无对话历史" />
-      <a-list v-else>
-        <a-list-item v-for="session in sessions" :key="session.session_id"
-          class="cursor-pointer hover:bg-gray-100 rounded p-2">
-          <div class="flex justify-between w-full" @click="loadSession(session.session_id)">
-            <div>
-              <div class="font-medium">
-                会话 #{{ session.session_id ? session.session_id.substring(0, 8) : '' }}
-              </div>
-              <div class="text-gray-500 text-sm">
-                {{ session.message_count ? `消息数: ${session.message_count}` : '新会话' }}
-              </div>
-            </div>
-            <div>
-              <div class="text-gray-500 text-sm">
-                {{ new Date(session.created_at).toLocaleString() }}
-              </div>
-              <a-button type="link" size="small" @click.stop="deleteSession(session.session_id)" danger>
-                <DeleteOutlined /> 删除
-              </a-button>
-            </div>
-          </div>
-        </a-list-item>
-      </a-list>
-    </div>
-  </a-modal>
+  <!-- 使用会话历史模态框组件 -->
+  <SessionHistoryModal :visible="historyModalVisible" :sessions="sessions"
+    @update:visible="handleHistoryModalVisibleUpdate" @load-session="loadSession" @delete-session="deleteSession" />
 </template>
 
 <script setup lang="ts">
@@ -272,6 +87,9 @@ import type { ChatMessage, Session } from '@/api/service/ai'
 import MarkdownIt from 'markdown-it'
 import hljs from 'highlight.js'
 import 'highlight.js/styles/github.css' // 使用 GitHub 风格的代码高亮主题
+import MessageList from './ai-chat/MessageList.vue'
+import ChatInput from './ai-chat/ChatInput.vue'
+import SessionHistoryModal from './ai-chat/SessionHistoryModal.vue'
 
 // 初始化 markdown 解析器
 const md: MarkdownIt = new MarkdownIt({
@@ -302,7 +120,6 @@ const md: MarkdownIt = new MarkdownIt({
 // 定义本地响应式变量
 const localDrawerOpen = ref(false)
 const messages = ref<ChatMessage[]>([])
-const inputMessage = ref('')
 const isLoading = ref(false)
 const isAiThinking = ref(false) // AI是否正在思考（用于显示思考中的动画）
 const currentSessionId = ref('')
@@ -310,8 +127,11 @@ const sessions = ref<Session[]>([])
 const historyModalVisible = ref(false)
 
 const lastUserMessage = ref<string>('') // 保存最后一次用户消息用于重试
-const messagesScrollContainer = ref<HTMLElement | null>(null) // 消息滚动容器的引用
 const usageInfo = ref<any>(null) // 保存使用情况信息
+
+// 子组件引用
+const messageListRef = ref<InstanceType<typeof MessageList> | null>(null)
+const chatInputRef = ref<InstanceType<typeof ChatInput> | null>(null)
 
 // 节流滚动函数，避免频繁滚动影响性能
 let scrollTimeout: any | null = null
@@ -352,11 +172,8 @@ watch(localDrawerOpen, (newVal) => {
 // 滚动到底部的函数
 const scrollToBottom = async () => {
   await nextTick() // 确保 DOM 更新完成
-  if (messagesScrollContainer.value) {
-    messagesScrollContainer.value.scrollTo({
-      top: messagesScrollContainer.value.scrollHeight,
-      behavior: 'smooth'
-    })
+  if (messageListRef.value) {
+    messageListRef.value.scrollToBottom()
   }
 }
 
@@ -371,13 +188,6 @@ const addErrorMessage = (errorText: string) => {
   }
   messages.value.push(errorMessage)
 }
-
-// 监听消息列表变化，自动滚动到底部
-watch(
-  messages,
-  scrollToBottom,
-  { deep: true } // 深度监听，捕获消息内容的变化
-)
 
 // 监听drawer打开状态，打开时滚动到底部
 watch(localDrawerOpen, async (newVal) => {
@@ -455,16 +265,24 @@ async function retryLastMessage() {
   }
 
   // 重新发送上一条消息
-  inputMessage.value = lastUserMessage.value
+  if (chatInputRef.value) {
+    chatInputRef.value.inputMessage = lastUserMessage.value
+  }
   await sendMessage()
 }
 
 // 发送消息并接收流式响应
 async function sendMessage() {
-  if (!inputMessage.value.trim() || isLoading.value) return
+  // 获取输入消息
+  let inputMsg = ''
+  if (chatInputRef.value) {
+    inputMsg = chatInputRef.value.inputMessage
+  }
+
+  if (!inputMsg.trim() || isLoading.value) return
 
   // 保存最后一条用户消息
-  lastUserMessage.value = inputMessage.value
+  lastUserMessage.value = inputMsg
 
   // 如果没有当前会话ID，先创建一个新会话
   if (!currentSessionId.value) {
@@ -478,7 +296,7 @@ async function sendMessage() {
 
   const userMessage: ChatMessage = {
     id: Date.now().toString(),
-    content: inputMessage.value,
+    content: inputMsg,
     role: 'user',
     timestamp: Date.now()
   }
@@ -495,7 +313,11 @@ async function sendMessage() {
   messages.value.push(aiMessage)
   isLoading.value = true
   isAiThinking.value = true  // 立即设置AI思考状态
-  inputMessage.value = ''
+
+  // 清空输入框
+  if (chatInputRef.value) {
+    chatInputRef.value.inputMessage = ''
+  }
 
   // 清空之前的使用情况信息
   usageInfo.value = null
@@ -764,14 +586,26 @@ function handleKeyDown(event: KeyboardEvent) {
 
 // 处理建议问题的点击
 function handleSuggestionClick(suggestion: string) {
-  inputMessage.value = suggestion
-  // 自动聚焦到输入框
-  setTimeout(() => {
-    const inputElement = document.getElementById('chat-input')
-    if (inputElement) {
-      inputElement.focus()
-    }
-  }, 0)
+  if (chatInputRef.value) {
+    chatInputRef.value.inputMessage = suggestion
+    // 自动聚焦到输入框
+    setTimeout(() => {
+      const inputElement = document.getElementById('chat-input')
+      if (inputElement) {
+        inputElement.focus()
+      }
+    }, 0)
+  }
+}
+
+// 处理输入消息更新
+function handleInputMessageUpdate(value: string) {
+  // 这里可以根据需要处理输入消息的更新
+}
+
+// 处理会话历史模态框可见性更新
+function handleHistoryModalVisibleUpdate(value: boolean) {
+  historyModalVisible.value = value
 }
 
 onMounted(() => {
