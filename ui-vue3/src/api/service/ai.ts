@@ -33,7 +33,7 @@ export interface ChatMessage {
   content: string
   role: 'user' | 'assistant'
   timestamp: number
-  type?: 'normal' | 'error'
+  type?: 'normal' | 'error' | 'partial_error'
 }
 
 export interface ChatResponse {
@@ -85,8 +85,8 @@ export const aiService = {
         message,
         sessionID: sessionId
       }),
-      mode: 'cors',
-      credentials: 'include'
+      mode: 'cors', // 允许跨域
+      credentials: 'include' // 允许携带 cookie
     })
 
     if (!response.ok) {
