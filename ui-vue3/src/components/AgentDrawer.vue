@@ -494,6 +494,7 @@ async function sendMessage() {
 
   messages.value.push(aiMessage)
   isLoading.value = true
+  isAiThinking.value = true  // 立即设置AI思考状态
   inputMessage.value = ''
 
   // 清空之前的使用情况信息
@@ -565,7 +566,7 @@ async function sendMessage() {
               case 'message_start':
                 console.log('开始新的消息')
                 aiMessage.content = ''
-                isAiThinking.value = true
+                // isAiThinking.value = true // 已在函数开始时设置
                 break
 
               case 'content_block_start':
