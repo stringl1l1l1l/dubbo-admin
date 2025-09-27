@@ -801,6 +801,35 @@ async function loadSession(sessionId: string) {
 </script>
 
 <style>
+/* 聊天区域滚动条样式优化 */
+.flex-1.space-y-6.overflow-y-auto {
+
+  /* Webkit浏览器滚动条样式 */
+  &::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 10px;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 10px;
+  }
+
+  &::-webkit-scrollbar-thumb:hover {
+    background: #a8a8a8;
+  }
+
+  /* Firefox浏览器滚动条样式 */
+  scrollbar-width: thin;
+  scrollbar-color: #c1c1c1 #f1f1f1;
+}
+
+/* 消息内容区域滚动条样式 */
 .markdown-body {
   font-family:
     -apple-system,
@@ -816,6 +845,59 @@ async function loadSession(sessionId: string) {
   max-width: 100%;
   overflow-x: auto;
   color: #24292e;
+
+  /* Webkit浏览器滚动条样式 */
+  &::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: #f6f8fa;
+    border-radius: 10px;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 10px;
+  }
+
+  &::-webkit-scrollbar-thumb:hover {
+    background: #a8a8a8;
+  }
+
+  /* Firefox浏览器滚动条样式 */
+  scrollbar-width: thin;
+  scrollbar-color: #c1c1c1 #f6f8fa;
+}
+
+/* 代码块滚动条样式 */
+.markdown-body .code-block,
+.markdown-body pre {
+
+  /* Webkit浏览器滚动条样式 */
+  &::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: #f6f8fa;
+    border-radius: 10px;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 10px;
+  }
+
+  &::-webkit-scrollbar-thumb:hover {
+    background: #a8a8a8;
+  }
+
+  /* Firefox浏览器滚动条样式 */
+  scrollbar-width: thin;
+  scrollbar-color: #c1c1c1 #f6f8fa;
 }
 
 .markdown-body>*:first-child {
